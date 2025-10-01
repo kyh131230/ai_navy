@@ -22,12 +22,21 @@ from openai import OpenAI
 # ===============================
 # 환경 변수 로드 (.env)
 # ===============================
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-STT_MODEL = os.getenv("STT_MODEL", "gpt-4o-mini-transcribe")  # whisper-1 등 가능
-OPENAI_TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
-OPENAI_TTS_VOICE = os.getenv("OPENAI_TTS_VOICE", "alloy")
+# load_dotenv()
+
+
+def get_secret(key: str, default: str = ""):
+    try:
+        return st.secrets.get(key, os.getenv(key, default))
+    except Exception:
+        return os.getenv(key, default)
+
+
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
+OPENAI_MODEL = get_secret("OPENAI_MODEL", "gpt-4o-mini")
+STT_MODEL = get_secret("STT_MODEL", "gpt-4o-mini-transcribe")
+OPENAI_TTS_MODEL = get_secret("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+OPENAI_TTS_VOICE = get_secret("OPENAI_TTS_VOICE", "alloy")
 
 # ===============================
 # 설정 스위치
@@ -101,8 +110,6 @@ def tts_advance(llm, text):
     chain = prompt | llm | StrOutputParser()
 
     advanced_tts = chain.invoke({"text": text})
-
-    print(">>>>>", advanced_tts)
 
     return advanced_tts
 
