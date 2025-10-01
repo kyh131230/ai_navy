@@ -114,24 +114,43 @@ def tts_advance(llm, text):
     return advanced_tts
 
 
-def speak_openai(llm, client, text, filename="route.mp3"):
-    out = Path(filename)
-    with st.status("🔊 안내 음성 생성 중...", expanded=True) as status:
-        status.update(label="📝 음성 대답을 위해 대답을 정리하는 중…")
-        polished = tts_advance(llm, text)
-        status.update(label="🎤 음성 합성 중…")
+def speak_openai(llm, client, text):
+    polished = tts_advance(llm, text)
+    audio_bytes = b""
 
-        # 👇 format 인자 제거!
-        with client.audio.speech.with_streaming_response.create(
-            model=OPENAI_TTS_MODEL,
-            voice=OPENAI_TTS_VOICE,
-            input=polished,
-        ) as resp:
-            resp.stream_to_file(out)
+    with st.status("🔊 안내 음성 생성 중...", expanded=True) as status:
+        status.update(label="📝 음성 대답 정리 중…")
+        status.update(label="🎤 음성 합성 중…")
+        try:
+            with client.audio.speech.with_streaming_response.create(
+                model=OPENAI_TTS_MODEL,
+                voice=OPENAI_TTS_VOICE,
+                input=polished,
+            ) as resp:
+                # 일부 버전은 iter_bytes 존재
+                if hasattr(resp, "iter_bytes"):
+                    chunks = []
+                    for ch in resp.iter_bytes():
+                        chunks.append(ch)
+                    audio_bytes = b"".join(chunks)
+                else:
+                    # 통째로 읽기 폴백
+                    audio_bytes = (
+                        resp.read() if hasattr(resp, "read") else resp.getvalue()
+                    )
+        except Exception:
+            res = client.audio.speech.create(
+                model=OPENAI_TTS_MODEL,
+                voice=OPENAI_TTS_VOICE,
+                input=polished,
+            )
+            audio_bytes = getattr(res, "content", None) or (
+                res.read() if hasattr(res, "read") else None
+            )
 
         status.update(label="▶️ 재생합니다", state="complete")
 
-    st.audio(str(out), format="audio/mp3", autoplay=True)
+    st.audio(audio_bytes, format="audio/mp3", autoplay=True)
 
 
 # ===============================
