@@ -7,4 +7,4 @@ openai>=1.40.0
 langchain
 langchain-openai
 langchain-core
-tiktoken`x
+tiktoken
